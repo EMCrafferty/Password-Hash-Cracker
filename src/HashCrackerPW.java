@@ -7,6 +7,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public class HashCrackerPW {
@@ -58,8 +59,6 @@ public class HashCrackerPW {
         Map<String, String> userPasswords = crackHashes(new File("password.txt"), new File("2B_stripped.txt"));
 //        Map<String, String> userPasswords = crackHashes(new File("password.txt"), new File("password_test.txt"));
 
-        userPasswords.put("randall_munroe", "CorrectHorseBatteryStaple"); // Inferred
-
         File cracked = new File("cracked_passwords_2B.txt");
         FileOutputStream crackedOut = new FileOutputStream(cracked);
         userPasswords.forEach((u, p) -> {
@@ -87,35 +86,37 @@ public class HashCrackerPW {
             users.put(username, new UserDetails(username, salt, encodedHash));
         });
 
+        AtomicInteger count = new AtomicInteger(0);
         getParallelLineStream(passwordDictionary).forEach(l ->
-                        users.entrySet()
-                             .parallelStream()
-                             .map(Map.Entry::getValue)
-                             .filter(u -> u.getPassword() == null)
-                             .filter(u -> {
-                                 String lineSaltHash;
-                                 MessageDigest digest;
-                                 try {
-                                     digest = MessageDigest.getInstance("SHA-256");
-                                 } catch (NoSuchAlgorithmException e) {
-                                     e.printStackTrace();
-                                     return false;
-                                 }
+        {
+//            System.out.printf("\r%s", l);     // too slow with "progress bar"
+            users.values()
+                 .stream()  // As I learned, do not nest .parallel() streams
+                 .filter(u -> u.getPassword() == null)
+                 .filter(u -> {
+                     String lineSaltHash;
+                     MessageDigest digest;
+                     try {
+                         digest = MessageDigest.getInstance("SHA-256");
+                     } catch (NoSuchAlgorithmException e) {
+                         e.printStackTrace();
+                         return false;
+                     }
 
-                                 lineSaltHash = Base64.getEncoder()
-                                                      .encodeToString(digest.digest((u.getSalt() + l).getBytes(StandardCharsets.UTF_8)));
-                                 boolean isMatch = lineSaltHash.equals(u.getEncodedHash());
+                     lineSaltHash = Base64.getEncoder()
+                                          .encodeToString(digest.digest((u.getSalt() + l).getBytes(StandardCharsets.UTF_8)));
+                     boolean isMatch = lineSaltHash.equals(u.getEncodedHash());
 
-                                 if (isMatch)
-                                     u.setPassword(l);
+                     if (isMatch)
+                         u.setPassword(l);
 
-                                 return isMatch;
-                             })
-                             .forEach(u -> {
-                                 System.out.printf("FOUND: %s\n\t\t- %s\n", u.getUsername(), u.getPassword());
-                                 crackedPasswords.put(u.getUsername(), u.getPassword());
-                             })
-        );
+                     return isMatch;
+                 })
+                 .forEach(u -> {
+                     System.out.printf("\rFOUND %d: %s\n\t\t\t- %s\n", count.incrementAndGet(), u.getUsername(), u.getPassword());
+                     crackedPasswords.put(u.getUsername(), u.getPassword());
+                 });
+        });
 
         return crackedPasswords;
     }
