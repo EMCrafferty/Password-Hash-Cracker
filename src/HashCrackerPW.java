@@ -1,10 +1,8 @@
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
@@ -57,15 +55,18 @@ public class HashCrackerPW {
     }
 
     public static void main(String[] args) throws IOException {
-        Map<String, String> userPasswords = crackHashes(new File("password.txt"), new File("353_stripped.txt"));
-        System.out.println("FINISHED");
-        userPasswords.forEach((k, v) -> System.out.println(k + " : " + v));
+        Map<String, String> userPasswords = crackHashes(new File("password.txt"), new File("2B_stripped.txt"));
+//        Map<String, String> userPasswords = crackHashes(new File("password.txt"), new File("password_test.txt"));
 
-        File cracked = new File("cracked_passwords.txt");
+        userPasswords.put("randall_munroe", "CorrectHorseBatteryStaple"); // Inferred
+
+        File cracked = new File("cracked_passwords_2B.txt");
         FileOutputStream crackedOut = new FileOutputStream(cracked);
         userPasswords.forEach((u, p) -> {
             try {
-                crackedOut.write((u + ":" + p).getBytes(StandardCharsets.UTF_8));
+                String lineOut = u + ":" + p + "\n";
+                crackedOut.write(lineOut.getBytes(StandardCharsets.UTF_8));
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -87,33 +88,33 @@ public class HashCrackerPW {
         });
 
         getParallelLineStream(passwordDictionary).forEach(l ->
-                users.entrySet()
-                     .parallelStream()
-                     .map(Map.Entry::getValue)
-                     .filter(u -> u.password == null)
-                     .filter(u -> {
-                         String lineSaltHash;
-                         MessageDigest digest;
-                         try {
-                             digest = MessageDigest.getInstance("SHA-256");
-                         } catch (NoSuchAlgorithmException e) {
-                             e.printStackTrace();
-                             return false;
-                         }
+                        users.entrySet()
+                             .parallelStream()
+                             .map(Map.Entry::getValue)
+                             .filter(u -> u.getPassword() == null)
+                             .filter(u -> {
+                                 String lineSaltHash;
+                                 MessageDigest digest;
+                                 try {
+                                     digest = MessageDigest.getInstance("SHA-256");
+                                 } catch (NoSuchAlgorithmException e) {
+                                     e.printStackTrace();
+                                     return false;
+                                 }
 
-                         lineSaltHash = Base64.getEncoder()
-                                              .encodeToString(digest.digest((u.salt + l).getBytes(StandardCharsets.UTF_8)));
-                         boolean isMatch = lineSaltHash.equals(u.encodedHash);
+                                 lineSaltHash = Base64.getEncoder()
+                                                      .encodeToString(digest.digest((u.getSalt() + l).getBytes(StandardCharsets.UTF_8)));
+                                 boolean isMatch = lineSaltHash.equals(u.getEncodedHash());
 
-                         if (isMatch)
-                             u.setPassword(l);
+                                 if (isMatch)
+                                     u.setPassword(l);
 
-                         return isMatch;
-                     })
-                     .forEach(u -> {
-                         System.out.printf("FOUND: %s\n\t\t- %s\n", u.getUsername(), u.getPassword());
-                         crackedPasswords.put(u.getUsername(), u.getPassword());
-                     })
+                                 return isMatch;
+                             })
+                             .forEach(u -> {
+                                 System.out.printf("FOUND: %s\n\t\t- %s\n", u.getUsername(), u.getPassword());
+                                 crackedPasswords.put(u.getUsername(), u.getPassword());
+                             })
         );
 
         return crackedPasswords;
