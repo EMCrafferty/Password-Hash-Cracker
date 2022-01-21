@@ -56,8 +56,7 @@ public class HashCrackerPW {
     }
 
     public static void main(String[] args) throws IOException {
-        Map<String, String> userPasswords = crackHashes(new File("password.txt"), new File("2B_stripped.txt"));
-//        Map<String, String> userPasswords = crackHashes(new File("password.txt"), new File("password_test.txt"));
+        Map<String, String> userPasswords = crackHashes(new File("password.txt"), new File("password_test.txt"));
 
         File cracked = new File("cracked_passwords_2B.txt");
         FileOutputStream crackedOut = new FileOutputStream(cracked);
@@ -113,7 +112,7 @@ public class HashCrackerPW {
                      return isMatch;
                  })
                  .forEach(u -> {
-                     System.out.printf("\rFOUND %d: %s\n\t\t\t- %s\n", count.incrementAndGet(), u.getUsername(), u.getPassword());
+                     System.out.printf("CRACK #%d: %s\n\t\t\t- %s\n", count.incrementAndGet(), u.getUsername(), u.getPassword());
                      crackedPasswords.put(u.getUsername(), u.getPassword());
                  });
         });
